@@ -1,0 +1,33 @@
+
+ecological parameters
+COMM    NBRENV              2                                        number of distinct environments
+COMM    MINENV              0.4                                      minimum environmental value (between 0 and 1)
+COMM	STEPENV 		    0.2                                      increment between environments
+// COMM	PROPFIRST 		    0.6                                      proportion of the first environment
+COMM    ENVSTD              0.02                                     microsite environment standard deviation
+COMM    MICROSITES          600                                      number of microsites in each patch
+COMM    K                   400                                      carying capacity
+COMM    D                   0.1                                      mortality rate
+COMM    B                   2                                        birth rate
+COMM    SEX 	            YES                                      sexual reproduction (YES or NO)
+COMM    GRIDSIZE            4                                        nbr of patches = gridsize^2
+COMM    PEXT                1e-3                                     extinction rate of patch communities 
+COMM    M                   1.25e-3                                  dispersal rate between patches
+COMM    RO                  2                                        scaling factor determining the width of the dispersal kernel
+
+
+evolution parameters
+EVOL    WE                  0.2                                      niche tolerance
+EVOL    LOCI                10                                       number of diploid loci
+EVOL    MU                  1e-4                                     mutation rate
+EVOL    FTPSTD              0.02                                     fenotypic standard deviation
+EVOL	SELACTION	        MORT                                     selection action (MORT or REPR)
+
+
+run parameters
+RUN     RUNS                1                                        number of replicate runs
+RUN     TIMESTEPS           2                                        number of time steps in a run
+RUN     PRINTSTEPS          2                                        time steps between console output
+RUN     SAVESTEPS           2                                        time steps between generation of output
+RUN     OUTPUT              results_evolvingMetacommunity.csv        destination of output file
+
