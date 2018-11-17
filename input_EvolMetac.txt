@@ -1,33 +1,38 @@
 
+parameters are tagged with capital words
+lines to be read as input should start with the parameter tag followed by the input value
+all other text is ignored
+lines not starting with an input tag (e.g. starting with '//') are ignored
+non initialized parameters receive a default value
+
 ecological parameters
-COMM    NBRENV              2                                        number of distinct environments
-COMM    MINENV              0.4                                      minimum environmental value (between 0 and 1)
-COMM	STEPENV 		    0.2                                      increment between environments
-// COMM	PROPFIRST 		    0.6                                      proportion of the first environment
-COMM    ENVSTD              0.02                                     microsite environment standard deviation
-COMM    MICROSITES          600                                      number of microsites in each patch
-COMM    K                   400                                      carying capacity
-COMM    D                   0.1                                      mortality rate
-COMM    B                   2                                        birth rate
-COMM    SEX 	            YES                                      sexual reproduction (YES or NO)
-COMM    GRIDSIZE            4                                        nbr of patches = gridsize^2
-COMM    PEXT                1e-3                                     extinction rate of patch communities 
-COMM    M                   1.25e-3                                  dispersal rate between patches
-COMM    RO                  2                                        scaling factor determining the width of the dispersal kernel
+NBRENV              2                                        number of distinct environments (default = 2)
+MINENV              0.4                                      minimum environmental value (between 0 and 1) (default = 0.4)
+STEPENV 		    0.2                                      increment between environments (default = 0.2)
+// PROPFIRST 		    0.6                                      proportion of the first environment (ignored unless // is removed)  (default = 0.5)
+SIGMAE              0.02                                     microsite environment standard deviation (default = 0.02)
+MICROSITES          600                                      number of microsites in each patch (default = 600)
+K                   400                                      carrying capacity (truncated if larger than microsites) (default = 400)
+D                   0.1                                      mortality rate (default = 0.1)
+B                   2                                        birth rate (default = 2)
+SEX 	            YES                                      sexual reproduction (YES or NO) (default = YES)
+GRIDSIZE            4                                        number of patches = gridsize^2 (default = 2)
+PEXT                1e-3                                     extinction rate of patch communities  (default = 0)
+M                   1.25e-3                                  dispersal rate between patches (should be set to 0 if gridsize = 1 (one patch)) (default = 0.01)
+RHO                 2                                        scaling factor determining the width of the dispersal kernel  (default = 1)
 
 
 evolution parameters
-EVOL    WE                  0.2                                      niche tolerance
-EVOL    LOCI                10                                       number of diploid loci
-EVOL    MU                  1e-4                                     mutation rate
-EVOL    FTPSTD              0.02                                     fenotypic standard deviation
-EVOL	SELACTION	        MORT                                     selection action (MORT or REPR)
+OMEGAE              0.2                                      niche tolerance (default = 0.2)
+LOCI                10                                       number of diploid loci (default = 10)
+MU                  1e-4                                     mutation rate (default = 1e-4)
+SIGMAZ              0.02                                     fenotypic standard deviation (default = 0.02)
 
 
 run parameters
-RUN     RUNS                1                                        number of replicate runs
-RUN     TIMESTEPS           2                                        number of time steps in a run
-RUN     PRINTSTEPS          2                                        time steps between console output
-RUN     SAVESTEPS           2                                        time steps between generation of output
-RUN     OUTPUT              results_evolvingMetacommunity.csv        destination of output file
+RUNS                2                                        number of replicate runs (default = 1)
+TIMESTEPS           1000                                     number of time steps in a run (default = 10000)
+PRINTSTEPS          100                                      time steps between console output (default = 100)
+SAVESTEPS           100                                      time steps between generation of output (default = 1000)
+OUTPUT              results_evolvingMetacommunity.csv        destination of output file (default = output_evolvingMetacommunity.csv)
 

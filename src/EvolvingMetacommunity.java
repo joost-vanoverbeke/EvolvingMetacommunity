@@ -10,11 +10,9 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveAction;
 
 
-enum SelAction 
-{
-	REPR, MORT
-}
-
+/* class EvolvingMetacommunity
+ * loops over cycles (time steps) of patch extinction, mortality, reproduction and dispersal
+ * writes output to file */
 public class EvolvingMetacommunity {
 
 	public static void main(String[] args) throws IOException {
@@ -37,9 +35,9 @@ public class EvolvingMetacommunity {
 
 			long startTime = System.currentTimeMillis();
 
-			streamOut.println("gridsize;nbr_patches;p_ext;m;ro;nbr_envs;sigma_env;microsites;K;d;b;loci;sigma_ftp;mu;w_e;sex;"
+			streamOut.println("gridsize;nbr_patches;p_ext;m;rho;nbr_envs;sigma_e;microsites;K;d;b;loci;sigma_z;mu;omega_e;sex;"
 					+ "run;time;patch;e_p;" 
-					+ "species;N;genotype;genotype_var;fenotype;fenotype_var;fitness;fitness_var");
+					+ "species;N;genotype_mean;genotype_var;fenotype_mean;fenotype_var;fitness_mean;fitness_var");
 
 			for (int r = 0; r < run.runs; r++) {
 
@@ -52,34 +50,9 @@ public class EvolvingMetacommunity {
 
 				for (int t = 0; t < run.timeSteps; t++) {
 
-// debug					
-//			        System.out.println("  " + java.util.Arrays.toString(sites.alive));
-//
-			        
 					sites.patchExtinction();
-
 					sites.mortality();
-
-// debug					
-//			    	System.out.println("  mortality");
-//			        System.out.println("  ID : " + java.util.Arrays.toString(sites.ID));
-//			        System.out.println("  alive : " + java.util.Arrays.toString(sites.alive));
-//			        System.out.println("  posAdults : " + java.util.Arrays.toString(sites.posAdults));
-//			        System.out.println("  nbrAdults : " + java.util.Arrays.toString(sites.nbrAdults));
-//			        System.out.println("  endPosAdults : " + sites.endPosAdults);
-//			        System.out.println("  cumsumAdults : " + java.util.Arrays.toString(sites.cumsumAdults));
-//			        System.out.println("  posEmpty : " + java.util.Arrays.toString(sites.posEmpty));
-//			        System.out.println("  nbrEmpty : " + java.util.Arrays.toString(sites.nbrEmpty));
-//			        System.out.println("  cumsumEmpty : " + java.util.Arrays.toString(sites.cumsumEmpty));
-//
-
 			        sites.reproduction();
-
-// debug					
-//			    	System.out.println("  reproduction");
-//			        System.out.println("  " + java.util.Arrays.toString(sites.alive));
-//			    	System.out.println("");
-//
 
 					if (t == 0 || ((t+1) % run.printSteps) == 0) 
 					{
@@ -91,7 +64,7 @@ public class EvolvingMetacommunity {
 							for (int s = 0; s < comm.nbrSpec; s++ )
 							{
 								streamOut.format("%d;%d;%f;%f;%f;%d;%f;%d;%d;%f;%f;%d;%f;%f;%f;%s",
-										comm.gridSize,comm.nbrPatches,comm.pExt,comm.dispRate,comm.ro,comm.nbrEnv,comm.envStd,comm.microsites,comm.K,comm.d,comm.b,evol.loci,evol.ftpStd,evol.mutationRate,evol.wE,comm.sex);
+										comm.gridSize,comm.nbrPatches,comm.pExt,comm.dispRate,comm.rho,comm.nbrEnv,comm.sigmaE,comm.microsites,comm.K,comm.d,comm.b,evol.loci,evol.sigmaZ,evol.mutationRate,evol.omegaE,comm.sex);
 								streamOut.format(";%d;%d;%d;%f",
 										r+1,t+1,p+1,sites.patchEnv[p]);
 								streamOut.format(";%d;%d;%f;%f;%f;%f;%f;%f%n",
@@ -111,6 +84,9 @@ public class EvolvingMetacommunity {
 }
 
 
+/* class Sites
+ * keeps track of individuals and their attributes in microsites (microhabitats within patches)
+ * implements patch extinction, mortality, reproduction (with inheritance and mutation) and dispersal */
 class Sites 
 {
 	static final ForkJoinPool pool = new ForkJoinPool();
@@ -177,18 +153,9 @@ class Sites
         	patchEnv[p] = init.resource[p];
             for (int m = 0; m < comm.microsites; m++) {
                 patch[(p * comm.microsites) + m] = p;
-                resource[(p * comm.microsites) + m] = patchEnv[p] + (Auxils.random.nextGaussian() * comm.envStd);
+                resource[(p * comm.microsites) + m] = patchEnv[p] + (Auxils.random.nextGaussian() * comm.sigmaE);
             }
             int[] posInds = Auxils.arraySample(init.N[p], Auxils.enumArray(p * comm.microsites, ((p + 1) * comm.microsites) - 1));
-
-// debug					
-//	        System.out.println("patch  " + p);
-//	        System.out.println("  init resource  " + init.resource[p]);
-//	        System.out.println("  patchEnv  " + patchEnv[p]);
-//	        System.out.println("  init genotp  " + init.genotp[p]);
-//	    	System.out.println("");
-//
-
 	    	for (int m : posInds) {
             	alive[m] = true;
             	ID[m] = init.ID[p];
@@ -208,15 +175,8 @@ class Sites
             	for (int l = 0; l < maxOnesFather; l++) {
             		genotp[m][evol.allFather[l]] = 1;
             	}
-            	
-// debug					
-//		    	System.out.println("    ind  " + m);
-//		        System.out.println("      " + java.util.Arrays.toString(genotp[m]));
-//		    	System.out.println("");
-//
-
-            	fenotp[m] = Auxils.arrayMean(Auxils.arrayElements(genotp[m],evol.allTrait)) + (Auxils.random.nextGaussian() * evol.ftpStd);
-            	fitness[m] = Math.exp(-(Math.pow(fenotp[m]-resource[m],2))/evol.divK);
+            	fenotp[m] = Auxils.arrayMean(Auxils.arrayElements(genotp[m],evol.allTrait)) + (Auxils.random.nextGaussian() * evol.sigmaZ);
+            	fitness[m] = Math.exp(-(Math.pow(fenotp[m]-resource[m],2))/evol.divF);
             }
         }
     }
@@ -228,7 +188,9 @@ class Sites
                 for (int i = p*comm.microsites; i < (p+1)*comm.microsites; i++)
                     alive[i] = false;
     }
-            
+  
+/* mortality 
+ * keeps also track of surviving individuals and empty microsites per patch for efficiency in further calculations of reproduction and dispersal */    
     void mortality()
     {
         int countDead = 0;
@@ -236,16 +198,8 @@ class Sites
         java.util.Arrays.fill(nbrAdults, 0);
         java.util.Arrays.fill(nbrEmpty, 0);
         for (int i = 0; i < alive.length; i++) {
-        	if (alive[i]) {
-	        	switch (evol.selAction) {
-	        		case REPR:
-	        			alive[i] = Auxils.random.nextDouble() > comm.d;
-	        			break;
-	        		case MORT: 
-	        			alive[i] = Auxils.random.nextDouble() < (1-comm.d)*fitness[i];
-	        			break;
-	        	}
-        	}
+        	if (alive[i])
+        		alive[i] = Auxils.random.nextDouble() < (1-comm.d)*fitness[i];
             if (alive[i]) {
                 posAdults[endPosAdults++] = i;
                 nbrAdults[patch[i]]++;
@@ -261,6 +215,7 @@ class Sites
         Auxils.arrayCumSum(cumsumAdults);
     }
 
+/* concurrent implementation */   
     void reproduction()
     {   
     	contributionAdults();
@@ -268,13 +223,15 @@ class Sites
         ForkReproduction fr = new ForkReproduction(this, 0, comm.nbrPatches);
         pool.invoke(fr);
     }    
-    
+
+/* concurrent implementation */
     void contributionAdults()
     {
     	ForkContribution.setThreshold(10000);
     	ForkContribution ff = new ForkContribution(this, 0, endPosAdults);
         pool.invoke(ff);
     }
+
     
     int metacommunitySize()
     {
@@ -295,15 +252,6 @@ class Sites
         	if (alive[i] && ID[i] == s)
         		sum++;
         return sum;
-    }
-
-    double meanEnv(int p)
-    {
-        double mean = 0;
-        for (int i = p*comm.microsites; i < (p+1)*comm.microsites; i++)
-    		mean += resource[i];
-            mean /= comm.microsites;
-            return mean;
     }
 
     double specGenotype(int p, int s)
@@ -371,6 +319,9 @@ class Sites
 }
 
 
+/* class ForkContribution
+ * concurrent implementation of logistic population growth 
+ * (1 - N/K) */
 class ForkContribution extends RecursiveAction 
 {   
 	private static final long serialVersionUID = 1L;
@@ -400,17 +351,7 @@ class ForkContribution extends RecursiveAction
 				sites.adultsContr[i] = (1 - (double)sites.nbrAdults[sites.patch[sites.posAdults[i]]]/sites.comm.K);
 			else
 				sites.adultsContr[i] = 0;
-			if (sites.evol.selAction == SelAction.REPR)
-				sites.adultsContr[i] *= sites.fitness[sites.posAdults[i]];
     	}
-
-// debug
-//    	System.out.println("  contribution");
-//    	System.out.println("  K : " + sites.comm.K);
-//        System.out.println("  nbrAdults : " + java.util.Arrays.toString(sites.nbrAdults));
-//        System.out.println("  contribution : " + java.util.Arrays.toString(sites.adultsContr));
-//
-        
     }
     
     protected void compute() 
@@ -428,6 +369,8 @@ class ForkContribution extends RecursiveAction
 }
 
 
+/* class ForkReproduction
+ * concurrent implementation of reproduction and juvenile dispersal */
 class ForkReproduction extends RecursiveAction 
 {   
 	private static final long serialVersionUID = 1L;
@@ -457,36 +400,16 @@ class ForkReproduction extends RecursiveAction
 
     protected void computeDirectly() 
     {
-
-// debug
-//		System.out.println("  reproduction");
-//		
-		
     	for (int p = pStart; p < pStart + pNbr; p++) {
     		probParents(p);
     		nbrOffspring = Auxils.arraySum(adultsProb, sites.endPosAdults)*sites.comm.b;
 	    	if (nbrOffspring < 1)
     			nbrOffspring = (Auxils.random.nextDouble() <= nbrOffspring) ? 1 : 0;
-
-// debug
-//	    	System.out.println("  patch : " + p);
-//	    	System.out.println("  probParents : " + java.util.Arrays.toString(adultsProb));
-//	    	System.out.println("  nbrOffspring : " + nbrOffspring);
-//	    	    		
-	    		    	
     		nbrSettled = Math.min((int) (nbrOffspring + 0.5), sites.cumsumEmpty[p] - ((p == 0) ? 0 : sites.cumsumEmpty[p-1]));
     		if (nbrSettled > 0) {
     			posOffspring = Auxils.arraySample(nbrSettled, java.util.Arrays.copyOfRange(sites.posEmpty, (p == 0) ? 0 : sites.cumsumEmpty[p-1], sites.cumsumEmpty[p]));
     			sampleM = Auxils.arraySampleProb(nbrSettled, Auxils.enumArray(0, sites.endPosAdults-1), java.util.Arrays.copyOf(adultsProb, sites.endPosAdults));
     			posMothers = Auxils.arrayElements(sites.posAdults, sampleM);
-
-// debug
-//    	    	System.out.println("  nbrSettled : " + nbrSettled);
-//    	        System.out.println("  posOffspring : " + java.util.Arrays.toString(posOffspring));
-//    	        System.out.println("  sampleM : " + java.util.Arrays.toString(sampleM));
-//    	        System.out.println("  posMothers : " + java.util.Arrays.toString(posMothers));
-//
-
     			settle(p);
     		}
     	}
@@ -504,44 +427,27 @@ class ForkReproduction extends RecursiveAction
         invokeAll(new ForkReproduction(sites, pStart, split),
                 new ForkReproduction(sites, pStart + split, pNbr - split));
     }
-    
+
+/* calculates probability of each individual to become a parent 
+ * = logistic growth factor * dispersal probability */    
     void probParents(int p)
     {
     	for (int i = 0; i < sites.endPosAdults; i++)
     		adultsProb[i] = sites.adultsContr[i]*sites.comm.dispNeighbours[p][sites.patch[sites.posAdults[i]]];
     }
-    
+
+/* installs newborns in empty microsites and inherits traits from the parent(s)
+ * including mutation */
     void settle(int p)
     {
         int posFather, nbrFathers, patchMother;
         int[] posFathers;
         double[] FathersProb;
-
-// debug
-//    	System.out.println("  settle");
-//    	System.out.println("  comm.sex : " + sites.comm.sex);
-//
-        
     	for (int i = 0; i < nbrSettled; i++) {
     		sites.alive[posOffspring[i]] = true;
     		sites.ID[posOffspring[i]] = sites.ID[posMothers[i]];
     		sites.fitness[posOffspring[i]] = 1;
-
-// debug
-//    		System.out.println("  offspr : " + i);
-//    		System.out.println("  posOffspr : " + posOffspring[i]);
-//    		System.out.println("  posMother : " + posMothers[i]);
-//    		System.out.println("  patch mother : " + sites.patch[posMothers[i]]);
-//    		System.out.println("  ID mother : " + sites.ID[posMothers[i]]);
-//    		System.out.println("  ID offspring : " + sites.ID[posOffspring[i]]);
-//
-    		    		        
     		if (sites.comm.sex) {
-
-// debug
-//    			System.out.println("  in sex");
-//
-    			    		        
     			patchMother = sites.patch[posMothers[i]];
     			startPosSample = (patchMother == 0) ? 0 : sites.cumsumAdults[patchMother-1];
     			rangeSample = sites.cumsumAdults[patchMother] - startPosSample; 
@@ -554,26 +460,17 @@ class ForkReproduction extends RecursiveAction
     					FathersProb[nbrFathers++] = adultsProb[f];
     				}
     			posFather = posFathers[Auxils.randIntProb(nbrFathers, FathersProb)];
-
-// debug
-//    			System.out.println("  patch mother : " + patchMother);
-//    			System.out.println("  patch father : " + sites.patch[posFather]);
-//    			System.out.println("  posMother : " + posMothers[i]);
-//    			System.out.println("  posFather : " + posFather);
-//    			System.out.println("  ID mother : " + sites.ID[posMothers[i]]);
-//    			System.out.println("  ID father : " + sites.ID[posFather]);
-//
-    			    			    		        
     			inherit(posOffspring[i], posMothers[i], posFather);
     		}
     		else
     			inherit(posOffspring[i], posMothers[i]);
 
-    		sites.fenotp[posOffspring[i]] = Auxils.arrayMean(Auxils.arrayElements(sites.genotp[posOffspring[i]],sites.evol.allTrait)) + (Auxils.random.nextGaussian() * sites.evol.ftpStd);
-    		sites.fitness[posOffspring[i]] = Math.exp(-(Math.pow(sites.fenotp[posOffspring[i]]-sites.resource[posOffspring[i]],2))/sites.evol.divK);
+    		sites.fenotp[posOffspring[i]] = Auxils.arrayMean(Auxils.arrayElements(sites.genotp[posOffspring[i]],sites.evol.allTrait)) + (Auxils.random.nextGaussian() * sites.evol.sigmaZ);
+    		sites.fitness[posOffspring[i]] = Math.exp(-(Math.pow(sites.fenotp[posOffspring[i]]-sites.resource[posOffspring[i]],2))/sites.evol.divF);
     	}
     }
-    
+ 
+/* inheritance for asexual reproduction (one parent) */    
     void inherit(int posOffspring, int posParent)
     {
     	for (int l : sites.evol.allTrait) {
@@ -584,6 +481,7 @@ class ForkReproduction extends RecursiveAction
     	}
     }
 
+/* inheritance for sexual reproduction (two parent) */    
     void inherit(int posOffspring, int posMother, int posFather)
     {
     	for (int l = 0; l < sites.evol.loci; l++) {
@@ -604,6 +502,7 @@ class ForkReproduction extends RecursiveAction
 }
 
 
+/* Ecological parameters/variables */
 class Comm 
 {
     int nbrEnv = 2;
@@ -612,16 +511,16 @@ class Comm
     double propFirst = 1.0/nbrEnv;
     double minResource = 0.4;
     double stepResource = 0.2;
-    double envStd = 0.02;
+    double sigmaE = 0.02;
     int microsites = 600;
     int K = 400;
     double d = 0.1;
     double b = 2;
     int gridSize = 2;
     int nbrPatches = gridSize*gridSize; 
-    double pExt = 1e-3;
+    double pExt = 0;
     double dispRate = 0.01;
-    double ro = 2;
+    double rho = 1;
     boolean sex = true;
     
     double[][] neighbours = new double[nbrPatches][nbrPatches];
@@ -652,7 +551,7 @@ class Comm
     {
         for (int i = 0; i < nbrPatches; i++) {
             for (int j = 0; j < nbrPatches; j++)
-                dispNeighbours[i][j] = (i == j) ? 0 : (ro*Math.exp(-ro*neighbours[i][j]));
+                dispNeighbours[i][j] = (i == j) ? 0 : (rho*Math.exp(-rho*neighbours[i][j]));
             double iSum = Auxils.arraySum(dispNeighbours[i]);
             for (int j = 0; j < nbrPatches; j++)
                 dispNeighbours[i][j] = (i == j) ? (1 - dispRate) : (dispRate*dispNeighbours[i][j]/iSum);
@@ -661,16 +560,15 @@ class Comm
 }
 
 
+/* Evolution parameters/variables */
 class Evol 
 {
-    double wE = 0.2; 
-    double divK = 1; 
+    double omegaE = 0.2; 
+    double divF = 1; 
     int loci = 10;
     double mutationRate = 1e-4;
-    double ftpStd = 0.02;
+    double sigmaZ = 0.02;
     
-    SelAction selAction = SelAction.REPR;
-
     int [] allMother;
     int [] allFather;
     int [] allTrait;
@@ -681,7 +579,7 @@ class Evol
         allFather  = new int [loci];
         allTrait = new int[2*loci];
 
-        divK = 2*Math.pow(wE, 2);
+        divF = 2*Math.pow(omegaE, 2);
         
         for (int l = 0; l < loci; l++) {
             allMother[l] = l;
@@ -692,6 +590,7 @@ class Evol
 }
 
 
+/* run parameters */
 class Run 
 {
 	static int processors = 1;
@@ -703,6 +602,7 @@ class Run
 }
 
 
+/* initialize simulation run */
 class Init 
 {
     int[] theShuffle;
@@ -723,8 +623,6 @@ class Init
 		genotp = new double [comm.nbrPatches];
 
 		java.util.Arrays.fill(N, comm.K);
-
-		//		
 		sp = 0;
         env = 0;
    		for (int p = 0; p < (int)(comm.propFirst*comm.nbrPatches); p++) 
@@ -750,6 +648,7 @@ class Init
 }
 
 
+/* reading in parameter values from input file */
 class Reader
 {
 	static void readInput(String fileName, Comm comm, Evol evol, Run run) throws IOException
@@ -760,11 +659,63 @@ class Reader
 			while ((line = input.readLine()) != null) {
 				words = line.trim().split("\\s+");
 				switch (words[0]) {
-					case "COMM": inputComm(words, comm);
+					case "NBRENV": 
+						comm.nbrEnv = Integer.parseInt(words[1]);
+						comm.nbrSpec = comm.nbrEnv;
 					break;
-					case "EVOL": inputEvol(words, evol);
+					case "MINENV": comm.minResource = Double.parseDouble(words[1]);
 					break;
-					case "RUN": inputRun(words, run);
+					case "STEPENV": comm.stepResource = Double.parseDouble(words[1]);
+					break;
+					case "PROPFIRST": 
+						comm.propFirst = Double.parseDouble(words[1]);
+						comm.propExpl = true;
+						break;
+					case "MICROSITES": comm.microsites = Integer.parseInt(words[1]);
+					break;
+					case "K": comm.K = Integer.parseInt(words[1]);
+					break;
+					case "D": comm.d = Double.parseDouble(words[1]);
+					break;
+					case "B": comm.b = Double.parseDouble(words[1]);
+					break;
+					case "SEX": 
+						switch (words[1]) {
+						case "YES": comm.sex = true;
+						break;
+						case "NO": comm.sex = false;
+						break;
+						}
+						break;
+					case "SIGMAE": comm.sigmaE = Double.parseDouble(words[1]);
+					break;
+					case "GRIDSIZE": comm.gridSize = Integer.parseInt(words[1]);
+					break;
+					case "PEXT": comm.pExt = Double.parseDouble(words[1]);
+					break;
+					case "M": comm.dispRate = Double.parseDouble(words[1]);
+					break;
+					case "RHO": comm.rho = Double.parseDouble(words[1]);
+					break;
+	
+					case "OMEGAE": evol.omegaE = Double.parseDouble(words[1]);
+					break;
+					case "LOCI": evol.loci = Integer.parseInt(words[1]);
+					break;
+					case "MU": evol.mutationRate = Double.parseDouble(words[1]);
+					break;
+					case "SIGMAZ": evol.sigmaZ = Double.parseDouble(words[1]);
+					break;
+	
+					case "RUNS": run.runs = Integer.parseInt(words[1]);
+					break;
+					case "TIMESTEPS": run.timeSteps = Integer.parseInt(words[1]);
+					break;
+					case "PRINTSTEPS": run.printSteps = Integer.parseInt(words[1]);
+					break;
+					case "SAVESTEPS": run.saveSteps = Integer.parseInt(words[1]);
+					break;
+					case "OUTPUT": run.fileName = words[1];
 					break;
 				}
 			}
@@ -772,91 +723,10 @@ class Reader
 			input.close();
 		}
 	}
-
-	static void inputComm(String[] in, Comm comm)
-	{
-		switch (in[1]) {
-			case "NBRENV": 
-				comm.nbrEnv = Integer.parseInt(in[2]);
-				comm.nbrSpec = comm.nbrEnv;
-			break;
-			case "MINENV": comm.minResource = Double.parseDouble(in[2]);
-			break;
-			case "STEPENV": comm.stepResource = Double.parseDouble(in[2]);
-			break;
-			case "PROPFIRST": 
-				comm.propFirst = Double.parseDouble(in[2]);
-				comm.propExpl = true;
-			break;
-			case "MICROSITES": comm.microsites = Integer.parseInt(in[2]);
-			break;
-			case "K": comm.K = Integer.parseInt(in[2]);
-			break;
-			case "D": comm.d = Double.parseDouble(in[2]);
-			break;
-			case "B": comm.b = Double.parseDouble(in[2]);
-			break;
-			case "SEX": 
-				switch (in[2]) {
-					case "YES": comm.sex = true;
-					break;
-					case "NO": comm.sex = false;
-					break;
-				}
-			break;
-			case "ENVSTD": comm.envStd = Double.parseDouble(in[2]);
-			break;
-			case "GRIDSIZE": comm.gridSize = Integer.parseInt(in[2]);
-			break;
-			case "PEXT": comm.pExt = Double.parseDouble(in[2]);
-			break;
-			case "M": comm.dispRate = Double.parseDouble(in[2]);
-			break;
-			case "RO": comm.ro = Double.parseDouble(in[2]);
-			break;
-		}
-	}
-
-	static void inputEvol(String[] in, Evol evol)
-	{
-		switch (in[1]) {
-			case "WE": evol.wE = Double.parseDouble(in[2]);
-			break;
-			case "LOCI": evol.loci = Integer.parseInt(in[2]);
-			break;
-			case "MU": evol.mutationRate = Double.parseDouble(in[2]);
-			break;
-			case "FTPSTD": evol.ftpStd = Double.parseDouble(in[2]);
-			break;
-			case "SELACTION": 
-				switch (in[2]) {
-					case "REPR": evol.selAction = SelAction.REPR;
-					break;
-					case "MORT": evol.selAction = SelAction.MORT;
-					break;
-				}
-			break;
-		}        
-	}
-
-	static void inputRun(String[] in, Run run)
-	{
-		switch (in[1]) {
-			case "RUNS": run.runs = Integer.parseInt(in[2]);
-			break;
-			case "TIMESTEPS": run.timeSteps = Integer.parseInt(in[2]);
-			break;
-			case "PRINTSTEPS": run.printSteps = Integer.parseInt(in[2]);
-			break;
-			case "SAVESTEPS": run.saveSteps = Integer.parseInt(in[2]);
-			break;
-			case "OUTPUT": run.fileName = in[2];
-			break;
-		}        
-	}
 }
 
 
+/* Auxiliary functions for array calculations */
 class Auxils 
 {
     static Random random = new Random();
